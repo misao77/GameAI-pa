@@ -105,6 +105,14 @@ void Enemy::Update()
 		if (CheckVision(playerPos))
 		{
 			isChasing_ = true;
+			isSearching_ = false;
+		}
+
+		if (isChasing_ && !CheckVision(playerPos))
+		{
+			isChasing_ = false;
+			isSearching_ = true;
+			searchTimer_ = 3.0f;
 		}
 
 		// 2. モードに合わせて移動（関数を呼び分けるだけ！）
@@ -112,19 +120,28 @@ void Enemy::Update()
 		{
 			MoveChasing(playerPos, stage);
 		}
+		else if (isSearching_)
+		{
+			searchTimer_ -= prog_timer;
+
+			if (searchTimer_ <= 0.0f)
+			{
+				isSearching_ = false;
+			}
+		}
 		else
 		{
 			MovePatrolling(stage);
 		}
+		/*else
+		{
+			MovePatrolling(stage);
+		}*/
 
 		prog_timer = 0.5f + prog_timer;
 	}
 
 }
-
-
-
-
 
 
 		//	//方向の定義を整理
@@ -136,11 +153,9 @@ void Enemy::Update()
 		//	case LEFT:  leftDir = DOWN;  break;
 		//	case RIGHT: leftDir = UP;    break;
 		//	}
-
 		//	// 今の場所から見た「前」と「左」
 		//	Point frontPos = pos_;
 		//	Point leftPos = pos_;
-
 		//	switch (dir_)
 		//	{
 		//	case UP:    frontPos.y -= ENEMY_DRAW_SIZE; break;
@@ -148,7 +163,6 @@ void Enemy::Update()
 		//	case LEFT:  frontPos.x -= ENEMY_DRAW_SIZE; break;
 		//	case RIGHT: frontPos.x += ENEMY_DRAW_SIZE; break;
 		//	}
-
 		//	switch (leftDir)
 		//	{
 		//	case UP:    leftPos.y -= ENEMY_DRAW_SIZE; break;
@@ -156,7 +170,6 @@ void Enemy::Update()
 		//	case LEFT:  leftPos.x -= ENEMY_DRAW_SIZE; break;
 		//	case RIGHT: leftPos.x += ENEMY_DRAW_SIZE; break;
 		//	}
-
 		//	// 壁かどうかを判定する
 		//	auto isWall = [&](Point p) {
 		//		int mapX = p.x / CHA_SIZE;
@@ -164,10 +177,8 @@ void Enemy::Update()
 		//		if (mapX < 0 || mapX >= STAGE_WIDTH || mapY < 0 || mapY >= STAGE_HEIGHT) return true;
 		//		return stage->GetMap(mapX, mapY) != 0;
 		//		};
-
 		//	bool frontIsWall = isWall(frontPos);
 		//	bool leftIsWall = isWall(leftPos);
-
 		//	//「今歩いてきた後ろの左側」に壁があったかをチェック
 		//	Point backLeftPos = pos_;
 		//	switch (dir_)
@@ -178,7 +189,6 @@ void Enemy::Update()
 		//	case RIGHT: backLeftPos.y -= ENEMY_DRAW_SIZE; break; // 右に進んでいる時の左
 		//	}
 		//	bool wallExistedOnLeft = isWall(backLeftPos);
-
 		//	//アルゴリズムの適用
 		//	if (wallExistedOnLeft && !leftIsWall)
 		//	{
@@ -202,7 +212,6 @@ void Enemy::Update()
 		//		case LEFT:  dir_ = UP;    break;
 		//		}
 		//	}
-
 		//	prog_timer = 0.5f + prog_timer;
 		//}
 

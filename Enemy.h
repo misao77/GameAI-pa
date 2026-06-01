@@ -18,8 +18,12 @@ public:
 
 private:
 	bool isChasing_ = false; // 追跡中かどうか
+	bool isSearching_ = false; // 捜索中
+	float searchTimer_ = 0.0f; // 捜索時間
 	int s = 32; // マスサイズ(32)
 	bool CheckVision(Point playerPos); // 視界チェック
 	void MoveChasing(Point playerPos, Stage* stage); // 追跡移動
 	void MovePatrolling(Stage* stage); // 外周巡回
+
+
 };
