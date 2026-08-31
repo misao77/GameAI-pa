@@ -124,6 +124,14 @@ void Enemy::Update()
 		{
 			searchTimer_ -= prog_timer;
 
+			//MovePatrolling(stage);
+			DrawFormatString(
+				10, 100,
+				GetColor(0, 0, 255),
+				"SearchTimer: %.2f",
+				searchTimer_
+			);
+
 			if (searchTimer_ <= 0.0f)
 			{
 				isSearching_ = false;
