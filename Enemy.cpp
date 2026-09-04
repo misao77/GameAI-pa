@@ -90,61 +90,91 @@ void Enemy::Update()
 	//	prog_timer = 0.5f + prog_timer;
 	//}
 
-	static float prog_timer = 0.5f;
 	float dt = Time::DeltaTime();
-	prog_timer = prog_timer - dt;
+	Stage* stage = FindGameObject<Stage>();
+	Player* player = FindGameObject<Player>();
+	if (!player) return;
 
-	if (prog_timer < 0.0f)
+	Point playerPos = player->GetPos();
+
+	// 1. 敵とプレイヤーの距離を計算
+	int diffX = playerPos.x - pos_.x;
+	int diffY = playerPos.y - pos_.y;
+	float distance = sqrtf((float)(diffX * diffX + diffY * diffY));
+
+	// 2. switch-case によるステートマシン（状態管理）
+	switch (state_)
 	{
-		Stage* stage = FindGameObject<Stage>();
-		Player* player = FindGameObject<Player>();
-		if (!player) return;
-
-		Point playerPos = player->GetPos();
-
+	case STATE_PATROL:
+		// --- 【パトロール中の処理】 ---
 		if (CheckVision(playerPos))
 		{
-			isChasing_ = true;
-			isSearching_ = false;
+			state_ = STATE_CHASE;      // 視界に入ったら追跡へ
+			searchTimer_ = 3.0f;       // 捜索・追跡タイマーセット
 		}
+		break;
 
-		if (isChasing_ && !CheckVision(playerPos))
+	case STATE_CHASE:
+		// --- 【追跡中の処理】 ---
+		if (distance <= ATTACK_RANGE)
 		{
-			isChasing_ = false;
-			isSearching_ = true;
-			searchTimer_ = 3.0f;
+			state_ = STATE_ATTACK;     // 攻撃範囲に入ったら攻撃へ
 		}
-
-		// 2. モードに合わせて移動（関数を呼び分けるだけ！）
-		if (isChasing_)
+		else if (!CheckVision(playerPos))
 		{
-			MoveChasing(playerPos, stage);
-		}
-		else if (isSearching_)
-		{
-			searchTimer_ -= prog_timer;
-
-			//MovePatrolling(stage);
-			DrawFormatString(
-				10, 100,
-				GetColor(0, 0, 255),
-				"SearchTimer: %.2f",
-				searchTimer_
-			);
-
+			searchTimer_ -= dt;        // 見失っている時間を減らす
 			if (searchTimer_ <= 0.0f)
 			{
-				isSearching_ = false;
+				state_ = STATE_SEARCH; // 時間切れなら捜索へ
+				searchTimer_ = 3.0f;   // 捜索タイマーを再セット
 			}
 		}
 		else
 		{
-			MovePatrolling(stage);
+			// 視界内に再確認できたらタイマーを維持・リセットするなどお好みで
+			searchTimer_ = 3.0f;
 		}
-		/*else
+		break;
+
+	case STATE_ATTACK:
+		// --- 【攻撃中の処理】 ---
+		if (distance > ATTACK_RANGE)
+		{
+			state_ = STATE_SEARCH;     // 攻撃範囲から逃げられたら捜索へ
+			searchTimer_ = 3.0f;       // 捜索タイマーセット
+		}
+		break;
+
+	case STATE_SEARCH:
+		// --- 【捜索中の処理】 ---
+		searchTimer_ -= dt;
+		if (CheckVision(playerPos))
+		{
+			state_ = STATE_CHASE;      // 捜索中に見つけたら再び追跡へ
+			searchTimer_ = 3.0f;
+		}
+		else if (CheckSerchTimeOver())
+		{
+			state_ = STATE_PATROL;     // 時間切れならパトロールに戻る
+		}
+		break;
+	}
+
+	// 3. 共通の移動処理（タイマーで間隔を制御）
+	static float prog_timer = 0.5f;
+	prog_timer -= dt;
+
+	if (prog_timer < 0.0f)
+	{
+		// 攻撃中（STATE_ATTACK）のときは移動しない（その場で停止）
+		if (state_ == STATE_CHASE || state_ == STATE_SEARCH)
+		{
+			MoveChasing(playerPos, stage);
+		}
+		else if (state_ == STATE_PATROL)
 		{
 			MovePatrolling(stage);
-		}*/
+		}
 
 		prog_timer = 0.5f + prog_timer;
 	}
@@ -296,8 +326,18 @@ void Enemy::Update()
 
 		SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
 		// --- アニメーションタイマー等の処理 ---
-		if (animTimer < 0) {}
-
+		switch (state_)
+		{
+		case STATE_ATTACK:
+			DrawString(pos_.x, pos_.y - 20, "ATTACK!!", GetColor(255, 0, 0));
+			break;
+		case STATE_CHASE:
+			DrawString(pos_.x, pos_.y - 20, "CHASE", GetColor(255, 165, 0));
+			break;
+		case STATE_SEARCH:
+			DrawString(pos_.x, pos_.y - 20, "SEARCH...", GetColor(0, 255, 255));
+			break;
+		}
 	}
 
 	bool Enemy::CheckVision(Point playerPos)
@@ -324,6 +364,15 @@ void Enemy::Update()
 		return false;//見つからなかった
 	}
 
+	bool Enemy::CheckSerchTimeOver()
+	{
+		if (searchTimer_ <= 0.0f)
+		{
+			return true;
+		}
+		return false;
+	}
+
 	void Enemy::MoveChasing(Point playerPos, Stage * stage)
 	{
 		int diffX = playerPos.x - pos_.x;
@@ -337,6 +386,11 @@ void Enemy::Update()
 
 		Point nextPos = pos_;
 		DIR nextDir = dir_;
+
+		bool isHorizontalDir = (dir_ == LEFT || dir_ == RIGHT);
+
+		// 横を向いていて、かつ極端に縦との差が大きくならなければ、横移動を優先する（ガタつき防止）
+		int threshold = isHorizontalDir ? -8 : 8; // ちょっとしたバッファを持たせる
 
 		if (abs(diffX) > abs(diffY)) {
 			if (diffX > 0) { nextDir = RIGHT; nextPos.x += s; }
