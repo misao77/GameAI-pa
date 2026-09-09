@@ -3,6 +3,12 @@
 #include "Stage.h"
 #include "Player.h"
 
+#include "EnemyState.h"
+#include "PatrolState.h"
+#include "ChaseState.h"
+#include "AttackState.h"
+#include "SearchState.h"
+
 namespace
 {
 	const int ENEMY_SIZE = 48; //敵のサイズ 32*32
@@ -20,14 +26,20 @@ Enemy::Enemy()
 	hImage_ = LoadGraph("Assets/panda_R.png");
 	pos_ = ENEMY_START_POS; //32はブロックの位置pos_
 	dir_ = INIT_ENEMY_DIR;
+
+	state_ = new PatrolState();
+	nextState_ = nullptr;
 }
 
 Enemy::~Enemy()
 {
+	delete state_;
+	delete nextState_;
 }
 
 void Enemy::Update()
 {
+	//元のやつ
 	////GetRand(数値)
 	////3秒に1回向きをランダムに変える
 	////static float dir_timer = 3.0f;
@@ -89,99 +101,103 @@ void Enemy::Update()
 	//	}
 	//	prog_timer = 0.5f + prog_timer;
 	//}
+	//float dt = Time::DeltaTime();
+	//Stage* stage = FindGameObject<Stage>();
+	//Player* player = FindGameObject<Player>();
+	//if (!player) return;
+	//Point playerPos = player->GetPos();
+	//// 1. 敵とプレイヤーの距離を計算
+	//int diffX = playerPos.x - pos_.x;
+	//int diffY = playerPos.y - pos_.y;
+	//float distance = sqrtf((float)(diffX * diffX + diffY * diffY));
+	//// 2. switch-case によるステートマシン（状態管理）
+	//switch (state_)
+	//{
+	////case STATE_PATROL:
+	////	// --- 【パトロール中の処理】 ---
+	////	if (CheckVision(playerPos))
+	////	{
+	////		state_ = STATE_CHASE;      // 視界に入ったら追跡へ
+	////		searchTimer_ = 3.0f;       // 捜索・追跡タイマーセット
+	////	}
+	////	break;
+	//case STATE_CHASE:
+	//	// --- 【追跡中の処理】 ---
+	//	if (distance <= ATTACK_RANGE)
+	//	{
+	//		state_ = STATE_ATTACK;     // 攻撃範囲に入ったら攻撃へ
+	//	}
+	//	else if (!CheckVision(playerPos))
+	//	{
+	//		searchTimer_ -= dt;        // 見失っている時間を減らす
+	//		if (searchTimer_ <= 0.0f)
+	//		{
+	//			state_ = STATE_SEARCH; // 時間切れなら捜索へ
+	//			searchTimer_ = 3.0f;   // 捜索タイマーを再セット
+	//		}
+	//	}
+	//	else
+	//	{
+	//		// 視界内に再確認できたらタイマーを維持・リセットするなどお好みで
+	//		searchTimer_ = 3.0f;
+	//	}
+	//	break;
+	//case STATE_ATTACK:
+	//	// --- 【攻撃中の処理】 ---
+	//	if (distance > ATTACK_RANGE)
+	//	{
+	//		state_ = STATE_SEARCH;     // 攻撃範囲から逃げられたら捜索へ
+	//		searchTimer_ = 3.0f;       // 捜索タイマーセット
+	//	}
+	//	break;
+	//case STATE_SEARCH:
+	//	// --- 【捜索中の処理】 ---
+	//	searchTimer_ -= dt;
+	//	if (CheckVision(playerPos))
+	//	{
+	//		state_ = STATE_CHASE;      // 捜索中に見つけたら再び追跡へ
+	//		searchTimer_ = 3.0f;
+	//	}
+	//	else if (CheckSerchTimeOver())
+	//	{
+	//		state_ = STATE_PATROL;     // 時間切れならパトロールに戻る
+	//	}
+	//	break;
+	//}
+	//// 3. 共通の移動処理（タイマーで間隔を制御）
+	//static float prog_timer = 0.5f;
+	//prog_timer -= dt;
+	//if (prog_timer < 0.0f)
+	//{
+	//	// 攻撃中（STATE_ATTACK）のときは移動しない（その場で停止）
+	//	if (state_ == STATE_CHASE || state_ == STATE_SEARCH)
+	//	{
+	//		MoveChasing(playerPos, stage);
+	//	}
+	//	else if (state_ == STATE_PATROL)
+	//	{
+	//		MovePatrolling(stage);
+	//	}
+	//	prog_timer = 0.5f + prog_timer;
+	//}
 
-	float dt = Time::DeltaTime();
-	Stage* stage = FindGameObject<Stage>();
-	Player* player = FindGameObject<Player>();
-	if (!player) return;
-
-	Point playerPos = player->GetPos();
-
-	// 1. 敵とプレイヤーの距離を計算
-	int diffX = playerPos.x - pos_.x;
-	int diffY = playerPos.y - pos_.y;
-	float distance = sqrtf((float)(diffX * diffX + diffY * diffY));
-
-	// 2. switch-case によるステートマシン（状態管理）
-	switch (state_)
+	if (state_)
 	{
-	case STATE_PATROL:
-		// --- 【パトロール中の処理】 ---
-		if (CheckVision(playerPos))
-		{
-			state_ = STATE_CHASE;      // 視界に入ったら追跡へ
-			searchTimer_ = 3.0f;       // 捜索・追跡タイマーセット
-		}
-		break;
-
-	case STATE_CHASE:
-		// --- 【追跡中の処理】 ---
-		if (distance <= ATTACK_RANGE)
-		{
-			state_ = STATE_ATTACK;     // 攻撃範囲に入ったら攻撃へ
-		}
-		else if (!CheckVision(playerPos))
-		{
-			searchTimer_ -= dt;        // 見失っている時間を減らす
-			if (searchTimer_ <= 0.0f)
-			{
-				state_ = STATE_SEARCH; // 時間切れなら捜索へ
-				searchTimer_ = 3.0f;   // 捜索タイマーを再セット
-			}
-		}
-		else
-		{
-			// 視界内に再確認できたらタイマーを維持・リセットするなどお好みで
-			searchTimer_ = 3.0f;
-		}
-		break;
-
-	case STATE_ATTACK:
-		// --- 【攻撃中の処理】 ---
-		if (distance > ATTACK_RANGE)
-		{
-			state_ = STATE_SEARCH;     // 攻撃範囲から逃げられたら捜索へ
-			searchTimer_ = 3.0f;       // 捜索タイマーセット
-		}
-		break;
-
-	case STATE_SEARCH:
-		// --- 【捜索中の処理】 ---
-		searchTimer_ -= dt;
-		if (CheckVision(playerPos))
-		{
-			state_ = STATE_CHASE;      // 捜索中に見つけたら再び追跡へ
-			searchTimer_ = 3.0f;
-		}
-		else if (CheckSerchTimeOver())
-		{
-			state_ = STATE_PATROL;     // 時間切れならパトロールに戻る
-		}
-		break;
+		state_->Update(this);
 	}
 
-	// 3. 共通の移動処理（タイマーで間隔を制御）
-	static float prog_timer = 0.5f;
-	prog_timer -= dt;
-
-	if (prog_timer < 0.0f)
+	if (nextState_)
 	{
-		// 攻撃中（STATE_ATTACK）のときは移動しない（その場で停止）
-		if (state_ == STATE_CHASE || state_ == STATE_SEARCH)
-		{
-			MoveChasing(playerPos, stage);
-		}
-		else if (state_ == STATE_PATROL)
-		{
-			MovePatrolling(stage);
-		}
+		delete state_;
 
-		prog_timer = 0.5f + prog_timer;
+		state_ = nextState_;
+		nextState_ = nullptr;
 	}
+
 
 }
 
-
+//元のやつ
 		//	//方向の定義を整理
 		//	DIR leftDir = UP;
 		//	switch (dir_)
@@ -252,7 +268,6 @@ void Enemy::Update()
 		//	}
 		//	prog_timer = 0.5f + prog_timer;
 		//}
-
 	//①プレイヤーも壁から外に出ないようにする
 	//②パンダを壁沿いにぐるぐる回るようにする
 	//（元の移動処理はコメントにしておく）
@@ -325,18 +340,169 @@ void Enemy::Update()
 		}
 
 		SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
-		// --- アニメーションタイマー等の処理 ---
-		switch (state_)
+		if (state_)
 		{
-		case STATE_ATTACK:
-			DrawString(pos_.x, pos_.y - 20, "ATTACK!!", GetColor(255, 0, 0));
-			break;
-		case STATE_CHASE:
-			DrawString(pos_.x, pos_.y - 20, "CHASE", GetColor(255, 165, 0));
-			break;
-		case STATE_SEARCH:
-			DrawString(pos_.x, pos_.y - 20, "SEARCH...", GetColor(0, 255, 255));
-			break;
+			DrawString(
+				pos_.x,
+				pos_.y - 20,
+				state_->GetStateName(),
+				GetColor(255, 0, 0)
+			);
+		}
+	}
+
+	void Enemy::ChangeState(EnemyState* newState)
+	{
+		nextState_ = newState;
+	}
+
+	void Enemy::UpdatePatrol()
+	{
+		float dt = Time::DeltaTime();
+
+		Player* player = FindGameObject<Player>();
+		Stage* stage = FindGameObject<Stage>();
+
+		if (!player || !stage)
+			return;
+
+		Point playerPos = player->GetPos();
+
+		prog_timer_ -= dt;
+
+		if (prog_timer_ <= 0.0f)
+		{
+			MovePatrolling(stage);
+			prog_timer_ = 0.5f;
+		}
+
+		if (CheckVision(playerPos))
+		{
+			searchTimer_ = 3.0f;
+			ChangeState(new ChaseState());
+		}
+	}
+
+	void Enemy::UpdateChase()
+	{
+		float dt = Time::DeltaTime();
+
+		Player* player = FindGameObject<Player>();
+		Stage* stage = FindGameObject<Stage>();
+
+		if (!player || !stage)
+			return;
+
+		Point playerPos = player->GetPos();
+
+		int diffX = playerPos.x - pos_.x;
+		int diffY = playerPos.y - pos_.y;
+
+		float distance =
+			sqrtf((float)(diffX * diffX + diffY * diffY));
+
+		// 攻撃距離に入った
+		if (distance <= ATTACK_RANGE)
+		{
+			ChangeState(new AttackState());
+			return;
+		}
+
+		// プレイヤーを見失った
+		if (!CheckVision(playerPos))
+		{
+			searchTimer_ -= dt;
+
+			if (searchTimer_ <= 0.0f)
+			{
+				searchTimer_ = 3.0f;
+
+				ChangeState(new SearchState());
+				return;
+			}
+		}
+		else
+		{
+			// 見えている間はタイマーをリセット
+			searchTimer_ = 3.0f;
+		}
+
+		// プレイヤーを追跡
+
+		prog_timer_ -= dt;
+
+		if (prog_timer_ < 0.0f)
+		{
+			MoveChasing(playerPos, stage);
+
+			prog_timer_ = 0.5f;
+		}
+	}
+
+	void Enemy::UpdateAttack()
+	{
+		Player* player = FindGameObject<Player>();
+
+		if (!player) return;
+
+		Point playerPos = player->GetPos();
+
+		int diffX = playerPos.x - pos_.x;
+		int diffY = playerPos.y - pos_.y;
+
+		float distance = sqrtf(
+			(float)(diffX * diffX + diffY * diffY)
+		);
+
+		// 攻撃距離から逃げたらSearch
+		if (distance > ATTACK_RANGE)
+		{
+			searchTimer_ = 3.0f;
+			ChangeState(new SearchState());
+			return;
+		}
+	}
+
+	void Enemy::UpdateSearch()
+	{
+		float dt = Time::DeltaTime();
+
+		Player* player = FindGameObject<Player>();
+		Stage* stage = FindGameObject<Stage>();
+
+		if (!player || !stage)
+			return;
+
+		Point playerPos = player->GetPos();
+
+		// 捜索タイマー
+		searchTimer_ -= dt;
+
+		// 再びプレイヤーを発見
+		if (CheckVision(playerPos))
+		{
+			searchTimer_ = 3.0f;
+
+			ChangeState(new AttackState());
+			return;
+		}
+
+		// 捜索時間終了
+		if (CheckSerchTimeOver())
+		{
+			ChangeState(new PatrolState());
+			return;
+		}
+
+		// 捜索中はうろうろ
+
+		prog_timer_ -= dt;
+
+		if (prog_timer_ < 0.0f)
+		{
+			MovePatrolling(stage);
+
+			prog_timer_ = 0.5f + prog_timer_;
 		}
 	}
 
